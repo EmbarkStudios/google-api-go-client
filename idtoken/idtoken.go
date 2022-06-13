@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"cloud.google.com/go/compute/metadata"
 	"golang.org/x/oauth2"
@@ -86,15 +87,18 @@ func NewTokenSource(ctx context.Context, audience string, opts ...ClientOption) 
 }
 
 func newTokenSource(ctx context.Context, audience string, ds *internal.DialSettings) (oauth2.TokenSource, error) {
+	fmt.Println("getting token soruce")
 	creds, err := internal.Creds(ctx, ds)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("checking json length")
 	if len(creds.JSON) > 0 {
 		return tokenSourceFromBytes(ctx, creds.JSON, audience, ds)
 	}
 	// If internal.Creds did not return a response with JSON fallback to the
 	// metadata service as the creds.TokenSource is not an ID token.
+	fmt.Println("checking on gce")
 	if metadata.OnGCE() {
 		return computeTokenSource(audience, ds)
 	}
@@ -102,10 +106,15 @@ func newTokenSource(ctx context.Context, audience string, ds *internal.DialSetti
 }
 
 func tokenSourceFromBytes(ctx context.Context, data []byte, audience string, ds *internal.DialSettings) (oauth2.TokenSource, error) {
+	fmt.Println("in token source from bytes")
 	if err := isServiceAccount(data); err != nil {
 		return nil, err
 	}
-	cfg, err := google.JWTConfigFromJSON(data, ds.GetScopes()...)
+	fmt.Println("getting jtw config from json")
+	d := string(data)
+	d2 := strings.ReplaceAll(d, "external_account", "service_account")
+
+	cfg, err := google.JWTConfigFromJSON([]byte(d2), ds.GetScopes()...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +137,7 @@ func tokenSourceFromBytes(ctx context.Context, data []byte, audience string, ds 
 }
 
 func isServiceAccount(data []byte) error {
+	fmt.Println("checking if service account")
 	if len(data) == 0 {
 		return fmt.Errorf("idtoken: credential provided is 0 bytes")
 	}
@@ -137,6 +147,7 @@ func isServiceAccount(data []byte) error {
 	if err := json.Unmarshal(data, &f); err != nil {
 		return err
 	}
+	fmt.Println("got type", f.Type)
 	if f.Type != "service_account" && f.Type != "external_account" {
 		return fmt.Errorf("idtoken: credential must be service_account, found %q", f.Type)
 	}
@@ -175,3 +186,4 @@ func WithCredentialsJSON(p []byte) ClientOption {
 func WithHTTPClient(client *http.Client) ClientOption {
 	return option.WithHTTPClient(client)
 }
+
