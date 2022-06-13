@@ -65,6 +65,7 @@ func NewClient(ctx context.Context, audience string, opts ...ClientOption) (*htt
 // provided and configured with the supplied options. The parameter audience may
 // not be empty.
 func NewTokenSource(ctx context.Context, audience string, opts ...ClientOption) (oauth2.TokenSource, error) {
+	fmt.Println("THIS IS MY CUSTOM PATH")
 	if audience == "" {
 		return nil, fmt.Errorf("idtoken: must supply a non-empty audience")
 	}
@@ -136,7 +137,7 @@ func isServiceAccount(data []byte) error {
 	if err := json.Unmarshal(data, &f); err != nil {
 		return err
 	}
-	if f.Type != "service_account" {
+	if f.Type != "service_account" && f.Type != "external_account" {
 		return fmt.Errorf("idtoken: credential must be service_account, found %q", f.Type)
 	}
 	return nil
